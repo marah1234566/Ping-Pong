@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>محاكاة تنس الطاولة</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- ── لوحة التحكم ── -->
+  <div id="panel">
+    <h1>⚡ محاكاة تنس الطاولة</h1>
+
+    <!-- السرعة -->
+    <div class="ctrl-group">
+      <div class="ctrl-label">السرعة الابتدائية v₀ <span id="v0-val">8</span> m/s</div>
+      <input type="range" id="v0" min="2" max="20" step="0.5" value="8" />
+    </div>
+
+    <!-- الزاوية -->
+    <div class="ctrl-group">
+      <div class="ctrl-label">زاوية القذف θ <span id="theta-val">12</span>°</div>
+      <input type="range" id="theta" min="-30" max="30" step="1" value="12" />
+    </div>
+
+    <!-- نوع الدوران -->
+    <div class="ctrl-group">
+      <div class="ctrl-label">نوع الدوران الابتدائي</div>
+      <div class="spin-row">
+        <button class="spin-btn active" data-spin="topspin">TOP<br/>SPIN</button>
+        <button class="spin-btn"        data-spin="none">NO<br/>SPIN</button>
+        <button class="spin-btn"        data-spin="backspin">BACK<br/>SPIN</button>
+      </div>
+    </div>
+
+    <!-- قوة الدوران -->
+    <div class="ctrl-group">
+      <div class="ctrl-label">قوة الدوران ω <span id="omega-val">80</span> rad/s</div>
+      <input type="range" id="omegaSlider" min="0" max="200" step="5" value="80" />
+    </div>
+
+    <!-- زر الإطلاق -->
+    <button id="launch-btn">▶ إطلاق الكرة</button>
+
+    <!-- ════════════════════════════════ -->
+    <!-- 🎮 كونترولر التحكم اليدوي       -->
+    <!-- ════════════════════════════════ -->
+    <div class="controller-section">
+      <div class="controller-title">🎮 تحكم يدوي</div>
+
+      <!-- حجم الكرة -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">حجم الكرة <span id="ball-size-val">1.0</span>x</div>
+        <input type="range" id="ball-size" min="0.5" max="4" step="0.1" value="1" />
+      </div>
+
+      <!-- قوة الدفع -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">قوة الدفع <span id="push-val">2</span> m/s</div>
+        <input type="range" id="push-force" min="0.5" max="10" step="0.5" value="2" />
+      </div>
+
+      <!-- أزرار الاتجاه -->
+      <div class="dpad">
+        <!-- صف أول: أمام -->
+        <div></div>
+        <button class="dir-btn" id="btn-forward">▲<br/><span>أمام</span></button>
+        <div></div>
+
+        <!-- صف ثاني: يسار، أعلى، يمين -->
+        <button class="dir-btn" id="btn-left">◄<br/><span>يسار</span></button>
+        <button class="dir-btn" id="btn-up">↑<br/><span>أعلى</span></button>
+        <button class="dir-btn" id="btn-right">►<br/><span>يمين</span></button>
+
+        <!-- صف ثالث: خلف -->
+        <div></div>
+        <button class="dir-btn" id="btn-backward">▼<br/><span>خلف</span></button>
+        <div></div>
+      </div>
+
+      <!-- أسفل + إيقاف -->
+      <div class="dpad-bottom">
+        <button class="dir-btn" id="btn-down">↓<br/><span>أسفل</span></button>
+        <button class="dir-btn stop-btn" id="btn-stop">⏹<br/><span>إيقاف</span></button>
+      </div>
+
+      <!-- تلميح لوحة المفاتيح -->
+      <div class="keys-hint">
+        ⌨️ أسهم لوحة المفاتيح · Space↑ · Shift↓ · S إيقاف
+      </div>
+    </div>
+  </div>
+
+  <!-- ── الإحصاءات ── -->
+  <div id="stats">
+    <div class="stat">
+      <div class="stat-label">السرعة |v|</div>
+      <div class="stat-val" id="s-speed">0.00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">الارتفاع Y</div>
+      <div class="stat-val" id="s-height">0.00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">الدوران |ω|</div>
+      <div class="stat-val" id="s-omega">0.00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">ارتدادات</div>
+      <div class="stat-val" id="s-bounces">0</div>
+    </div>
+  </div>
+
+  <div id="hint">🖱 سحب للدوران · عجلة للتكبير · يمين للتحريك</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
