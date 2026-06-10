@@ -10,16 +10,18 @@ import { buildFloor }           from './scene/Floor.js';
 import { buildTable }           from './scene/Table.js';
 
 // ════════════════════════════════════════════════════════════════
-//  Renderer
+//  Renderer — يأخذ حجم الـ container مش الـ window
 // ════════════════════════════════════════════════════════════════
+const container = document.getElementById('canvas-container');
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(container.clientWidth, container.clientHeight); // ← تعديل
 renderer.shadowMap.enabled   = true;
 renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
 renderer.toneMapping         = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
-document.getElementById('canvas-container').appendChild(renderer.domElement);
+container.appendChild(renderer.domElement);
 
 // ════════════════════════════════════════════════════════════════
 //  Scene & Camera
@@ -29,7 +31,10 @@ scene.background = new THREE.Color(0x0a0c0f);
 scene.fog        = new THREE.FogExp2(0x0a0c0f, 0.05);
 
 const camera = new THREE.PerspectiveCamera(
-  50, window.innerWidth / window.innerHeight, 0.01, 100
+  50,
+  container.clientWidth / container.clientHeight, // ← تعديل
+  0.01,
+  100
 );
 camera.position.set(-3.5, 2.2, 3.0);
 
@@ -51,13 +56,13 @@ buildTable(scene);
 // ════════════════════════════════════════════════════════════════
 //  Ball Mesh
 // ════════════════════════════════════════════════════════════════
-let currentRadius = PHYSICS.r; // نصف القطر الحالي (يتغير بالسلايدر)
+let currentRadius = PHYSICS.r;
 
-const ballGeo = new THREE.SphereGeometry(1, 32, 32); // scale=1 ونحكم بـ scale
-const ballMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3 });
+const ballGeo  = new THREE.SphereGeometry(1, 32, 32);
+const ballMat  = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3 });
 const ballMesh = new THREE.Mesh(ballGeo, ballMat);
 ballMesh.castShadow = true;
-ballMesh.scale.setScalar(PHYSICS.r); // حجم افتراضي
+ballMesh.scale.setScalar(PHYSICS.r);
 scene.add(ballMesh);
 
 // ظل صناعي
@@ -91,7 +96,7 @@ launchBall();
 //  🎮 MANUAL CONTROLLER
 // ════════════════════════════════════════════════════════════════
 
-// ── التحكم بالحجم ─────────────────────────────────────────────
+// ── حجم الكرة ─────────────────────────────────────────────────
 const ballSizeSlider = document.getElementById('ball-size');
 const ballSizeVal    = document.getElementById('ball-size-val');
 
@@ -99,12 +104,10 @@ ballSizeSlider.addEventListener('input', () => {
   const scale = parseFloat(ballSizeSlider.value);
   ballSizeVal.textContent = scale.toFixed(1);
   currentRadius = PHYSICS.r * scale;
-
-  // تغيير حجم الـ mesh مباشرة
   ballMesh.scale.setScalar(currentRadius);
 });
 
-// ── التحكم بالاتجاه ───────────────────────────────────────────
+// ── قوة الدفع ─────────────────────────────────────────────────
 const pushForceSlider = document.getElementById('push-force');
 const pushValEl       = document.getElementById('push-val');
 
@@ -116,33 +119,25 @@ function getPushForce() {
   return parseFloat(pushForceSlider.value);
 }
 
-/**
- * دفع الكرة بمتجه معين
- * @param {THREE.Vector3} direction - اتجاه الدفع (normalized)
- */
 function pushBall(direction) {
-  const force = getPushForce();
-  ballState.stopped = false; // إعادة تفعيل الحركة لو كانت متوقفة
-
-  // أضف نبضة سرعة للكرة بالاتجاه المطلوب
-  ballState.vel.addScaledVector(direction, force);
+  ballState.stopped = false;
+  ballState.vel.addScaledVector(direction, getPushForce());
 }
 
-// الأزرار وربطها بالاتجاهات
+// ── أزرار الاتجاه ─────────────────────────────────────────────
 const dirMap = {
-  'btn-forward':  new THREE.Vector3( 1,  0,  0),  // أمام (X+)
-  'btn-backward': new THREE.Vector3(-1,  0,  0),  // خلف  (X-)
-  'btn-left':     new THREE.Vector3( 0,  0, -1),  // يسار (Z-)
-  'btn-right':    new THREE.Vector3( 0,  0,  1),  // يمين (Z+)
-  'btn-up':       new THREE.Vector3( 0,  1,  0),  // أعلى (Y+)
-  'btn-down':     new THREE.Vector3( 0, -0.5, 0), // أسفل (Y-)
+  'btn-forward':  new THREE.Vector3( 1,    0,    0),
+  'btn-backward': new THREE.Vector3(-1,    0,    0),
+  'btn-left':     new THREE.Vector3( 0,    0,   -1),
+  'btn-right':    new THREE.Vector3( 0,    0,    1),
+  'btn-up':       new THREE.Vector3( 0,    1,    0),
+  'btn-down':     new THREE.Vector3( 0,   -0.5,  0),
 };
 
 Object.entries(dirMap).forEach(([id, dir]) => {
   const btn = document.getElementById(id);
   if (!btn) return;
 
-  // دعم الضغط المستمر (hold)
   let interval = null;
 
   const startPush = () => {
@@ -154,34 +149,34 @@ Object.entries(dirMap).forEach(([id, dir]) => {
     interval = null;
   };
 
-  btn.addEventListener('mousedown',   startPush);
-  btn.addEventListener('mouseup',     stopPush);
-  btn.addEventListener('mouseleave',  stopPush);
-  btn.addEventListener('touchstart',  (e) => { e.preventDefault(); startPush(); });
-  btn.addEventListener('touchend',    stopPush);
+  btn.addEventListener('mousedown',  startPush);
+  btn.addEventListener('mouseup',    stopPush);
+  btn.addEventListener('mouseleave', stopPush);
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); startPush(); });
+  btn.addEventListener('touchend',   stopPush);
 });
 
-// زر الإيقاف
+// ── زر الإيقاف ────────────────────────────────────────────────
 document.getElementById('btn-stop')?.addEventListener('click', () => {
   ballState.vel.set(0, 0, 0);
   ballState.omega.set(0, 0, 0);
   ballState.stopped = true;
 });
 
-// ── كونترولر لوحة المفاتيح ────────────────────────────────────
+// ── لوحة المفاتيح ─────────────────────────────────────────────
 const keysHeld = new Set();
 
 window.addEventListener('keydown', (e) => {
-  if (keysHeld.has(e.code)) return; // منع التكرار
+  if (keysHeld.has(e.code)) return;
   keysHeld.add(e.code);
 
   const keyMap = {
-    'ArrowUp':    new THREE.Vector3( 1,  0,  0),
-    'ArrowDown':  new THREE.Vector3(-1,  0,  0),
-    'ArrowLeft':  new THREE.Vector3( 0,  0, -1),
-    'ArrowRight': new THREE.Vector3( 0,  0,  1),
-    'Space':      new THREE.Vector3( 0,  1,  0),
-    'ShiftLeft':  new THREE.Vector3( 0, -0.5, 0),
+    'ArrowUp':    new THREE.Vector3( 1,    0,    0),
+    'ArrowDown':  new THREE.Vector3(-1,    0,    0),
+    'ArrowLeft':  new THREE.Vector3( 0,    0,   -1),
+    'ArrowRight': new THREE.Vector3( 0,    0,    1),
+    'Space':      new THREE.Vector3( 0,    1,    0),
+    'ShiftLeft':  new THREE.Vector3( 0,   -0.5,  0),
   };
 
   if (keyMap[e.code]) {
@@ -189,7 +184,6 @@ window.addEventListener('keydown', (e) => {
     pushBall(keyMap[e.code]);
   }
 
-  // S = إيقاف
   if (e.code === 'KeyS') {
     ballState.vel.set(0, 0, 0);
     ballState.omega.set(0, 0, 0);
@@ -231,7 +225,7 @@ function animate(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000, 0.033);
   lastTime = timestamp;
 
-  // Sub-stepping للدقة
+  // Sub-stepping
   const subSteps = 4;
   for (let i = 0; i < subSteps; i++) {
     physics.step(dt / subSteps);
@@ -240,7 +234,7 @@ function animate(timestamp) {
   // تحديث موقع الكرة
   ballMesh.position.copy(ballState.pos);
 
-  // تدوير الكرة بصرياً
+  // تدوير الكرة
   const spinAxis  = ballState.omega.clone().normalize();
   const spinAngle = ballState.omega.length() * dt;
   if (spinAngle > 0.0001) {
@@ -271,9 +265,13 @@ function animate(timestamp) {
 
 requestAnimationFrame(animate);
 
-// Resize
+// ════════════════════════════════════════════════════════════════
+//  Resize — يحترم حجم الـ container مش الـ window
+// ════════════════════════════════════════════════════════════════
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(w, h); // ← تعديل
 });

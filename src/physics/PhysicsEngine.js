@@ -97,14 +97,38 @@ export class PhysicsEngine {
     }
 
     // ── تصادم مع الشبكة ──────────────────────────────────────
-    const netH = tableH + 0.1525;
-    if (
-      Math.abs(pos.x) < 0.012 &&
-      pos.y < netH &&
-      pos.y > tableH
-    ) {
-      vel.x = -vel.x * 0.5;
-      pos.x = Math.sign(vel.x) * 0.013;
+    const netX     = 0;
+    const netH     = tableH + 0.1525; // ارتفاع الشبكة الكامل
+    const netHalfW = tableW / 2;      // نصف عرض الشبكة
+
+    // الكرة داخل نطاق عرض الشبكة على محور Z
+    const inNetZRange = Math.abs(pos.z) <= netHalfW + r;
+
+    // الكرة على مستوى الشبكة على محور X
+    const crossingNet = Math.abs(pos.x - netX) <= r + 0.008;
+
+    if (crossingNet && inNetZRange) {
+
+      // ── الكرة أسفل الشبكة = ارتطام جانبي ──────────────────
+      // إذا كانت الكرة تحت ارتفاع الشبكة ترتد
+      // إذا كانت فوق الشبكة تعدي بحرية
+      if (pos.y - r <= netH && pos.y >= tableH) {
+
+        // منع الاختراق — أعد الكرة لجهتها
+        pos.x = netX + Math.sign(vel.x || 0.001) * (r + 0.009);
+
+        // ارتداد مع فقدان طاقة (معامل 0.45)
+        vel.x = -vel.x * 0.45;
+
+        // احتكاك جانبي خفيف عند الارتطام
+        vel.z *= 0.85;
+        vel.y *= 0.85;
+
+        // تأثير الارتطام على الدوران
+        omega.z -= vel.x * 0.3;
+        omega.x += vel.z * 0.3;
+      }
+      // إذا كانت الكرة فوق الشبكة — لا يوجد تصادم، تعدي بحرية
     }
 
     // ── تصادم مع الأرض ───────────────────────────────────────
