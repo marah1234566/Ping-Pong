@@ -1,17 +1,24 @@
 import * as THREE from 'three';
 
-/** بناء الأرضية مع شبكة مرجعية */
 export function buildFloor(scene) {
-  const geo = new THREE.PlaneGeometry(20, 20);
+  const textureLoader = new THREE.TextureLoader();
+
+  const floorTexture = textureLoader.load(
+    'https://threejs.org/examples/textures/hardwood2_diffuse.jpg'
+  );
+  floorTexture.wrapS = THREE.RepeatWrapping;
+  floorTexture.wrapT = THREE.RepeatWrapping;
+  floorTexture.repeat.set(10, 10);  // ← كان 6, مدّدتها مع الأرضية الأكبر
+  floorTexture.colorSpace = THREE.SRGBColorSpace;
+
+  const geo = new THREE.PlaneGeometry(40, 40);  // ← كان 20×20
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x111820, roughness: 0.9, metalness: 0.1,
+    map: floorTexture,
+    roughness: 0.4,    // ← كان 0.55، أقل = أكتر لمعة
+    metalness: 0.08,   // ← كان 0.05
   });
   const floor = new THREE.Mesh(geo, mat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
-
-  const grid = new THREE.GridHelper(20, 40, 0x1a2530, 0x1a2530);
-  grid.position.y = 0.001;
-  scene.add(grid);
 }

@@ -21,33 +21,33 @@ export class BallState {
    * @param {string} spinType - 'topspin' | 'backspin' | 'none'
    * @param {number} omegaMag - قيمة الدوران (rad/s)
    */
-  reset(v0, thetaDeg, spinType, omegaMag) {
-    const theta = THREE.MathUtils.degToRad(thetaDeg);
+reset(v0, thetaDeg, spinType, omegaMag) {
+  const theta = THREE.MathUtils.degToRad(thetaDeg);
 
-    // نقطة الإطلاق: نهاية الطاولة (جانب اللاعب) + ارتفاع طفيف
-    this.pos.set(
-      -PHYSICS.tableL / 2 + 0.1,
-      PHYSICS.tableH + 0.15,
-      0
-    );
+  // نقطة الإطلاق: أعلى من سطح الطاولة بوضوح
+ this.pos.set(
+  -PHYSICS.tableL / 2 + 0.1,
+  PHYSICS.tableH + PHYSICS.tableThickness + 0.08,
+  0
+);
 
-    // السرعة الابتدائية مع مراعاة زاوية القذف
-    this.vel.set(
-      v0 * Math.cos(theta),  // المكوّن الأفقي
-      v0 * Math.sin(theta),  // المكوّن العمودي
-      0
-    );
+  this.vel.set(
+    v0 * Math.cos(theta),
+    v0 * Math.sin(theta),
+    0
+  );
 
-    // تعيين الدوران الابتدائي حسب النوع
-    if (spinType === 'topspin') {
-      this.omega.set(0, 0, -omegaMag); // Z سالب = Topspin
-    } else if (spinType === 'backspin') {
-      this.omega.set(0, 0, omegaMag);  // Z موجب = Backspin
-    } else {
-      this.omega.set(0, 0, 0);
-    }
-
-    this.bounces = 0;
-    this.stopped = false;
+  if (spinType === 'topspin') {
+    this.omega.set(0, 0, -omegaMag);
+  } else if (spinType === 'backspin') {
+    this.omega.set(0, 0, omegaMag);
+  } else if (spinType === 'sidespin') {
+    this.omega.set(0, omegaMag, 0);
+  } else {
+    this.omega.set(0, 0, 0);
   }
+
+  this.bounces = 0;
+  this.stopped = false;
+}
 }

@@ -1,43 +1,41 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>محاكاة تنس الطاولة</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <title>Table Tennis Simulation</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Tajawal:wght@300;400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0a0c0f;
-      --panel:   rgba(14, 18, 24, 0.97);
-      --border:  rgba(255,255,255,0.09);
-      --accent:  #00e5ff;
-      --accent2: #ff4d6d;
-      --accent3: #7fff6e;
-      --text:    #c8d4e0;
-      --muted:   #5a6a7a;
-      --radius:  8px;
+      --bg:       #0a0c0f;
+      --panel-bg: #15191f;
+      --header-bg:#ff7a1a;
+      --border:   rgba(255,255,255,0.08);
+      --accent:   #00e5ff;
+      --accent2:  #ff4d6d;
+      --accent3:  #7fff6e;
+      --text:     #d4dae1;
+      --muted:    #8a96a3;
+      --radius:   6px;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Tajawal', sans-serif;
+      font-family: 'IBM Plex Mono', monospace;
       overflow: hidden;
       height: 100vh;
       width: 100vw;
-      display: flex;
-      flex-direction: row;
+      position: relative;
     }
 
-    /* ── Canvas ── */
     #canvas-container {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
+      position: absolute;
+      inset: 0;
+      z-index: 0;
     }
     #canvas-container canvas {
       display: block;
@@ -45,54 +43,127 @@
       height: 100% !important;
     }
 
-    /* ══════════════════════════════════════
-       SIDE PANEL
-       ══════════════════════════════════════ */
     #panel {
-      width: 200px;
-      min-width: 200px;
-      height: 100vh;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 230px;
+      max-height: 480px;
       overflow-y: auto;
-      background: #0d1119;
-      border-left: 1px solid var(--border);
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
       z-index: 100;
-      padding: 10px 9px;
       display: flex;
       flex-direction: column;
-      gap: 7px;
-      box-shadow: -4px 0 30px rgba(0,0,0,0.6);
-      zoom: 0.82;
     }
 
-    #panel::-webkit-scrollbar { width: 2px; }
+    #panel::-webkit-scrollbar { width: 3px; }
     #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-    #panel h1 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 9px;
+    .panel-header {
+      background: var(--header-bg);
+      color: #1a0e00;
+      font-size: 11px;
       font-weight: 600;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      border-radius: 9px 9px 0 0;
+    }
+    .panel-header .chevron { font-size: 9px; }
+
+    .section { border-bottom: 1px solid var(--border); }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .section-header:hover { background: rgba(255,255,255,0.03); }
+    .section-header .chevron {
+      font-size: 9px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .section.collapsed .chevron { transform: rotate(-90deg); }
+
+    .section-body {
+      padding: 2px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 1000px;
+      overflow: hidden;
+      transition: max-height 0.25s ease, padding 0.25s ease;
+    }
+    .section.collapsed .section-body {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
     }
 
-    .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
-
-    .ctrl-label {
+    .check-row {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: baseline;
+      font-size: 11px;
+      color: var(--text);
+      padding: 1px 0;
+    }
+
+    .checkbox {
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: #1c2128;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .checkbox.checked { background: var(--accent); border-color: var(--accent); }
+    .checkbox.checked::after {
+      content: '✓';
+      font-size: 9px;
+      color: #00242b;
+      font-weight: 700;
+    }
+
+    .slider-row { display: flex; align-items: center; gap: 8px; }
+    .slider-row .slider-name {
       font-size: 10px;
       color: var(--muted);
-      font-family: 'IBM Plex Mono', monospace;
+      flex: 1;
+      white-space: nowrap;
+    }
+    .slider-row input[type=range] { flex: 1.4; }
+    .slider-row .val-box {
+      background: rgba(0,229,255,0.1);
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 10px;
+      min-width: 26px;
+      text-align: center;
     }
 
-    .ctrl-label span { font-size: 11px; color: var(--accent); font-weight: 600; }
-
     input[type=range] {
-      width: 100%; height: 3px;
+      height: 3px;
       -webkit-appearance: none; appearance: none;
       background: var(--border); border-radius: 2px;
       outline: none; cursor: pointer;
@@ -105,81 +176,63 @@
     }
     input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.3); }
 
-    .spin-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
-
-    .spin-btn {
-      padding: 5px 3px;
+    .select-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .select-row .label { color: var(--muted); }
+    select {
+      background: #20252c;
+      color: var(--text);
       border: 1px solid var(--border);
-      background: transparent; color: var(--muted);
-      font-family: 'IBM Plex Mono', monospace; font-size: 8px;
-      border-radius: 5px; cursor: pointer; transition: all .15s; text-align: center;
-    }
-    .spin-btn.active {
-      border-color: var(--accent); color: var(--accent);
-      background: rgba(0,229,255,.07);
-    }
-    .spin-btn:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
-
-    #launch-btn {
-      width: 100%; padding: 8px;
-      border: 1px solid var(--accent); background: rgba(0,229,255,.1);
-      color: var(--accent); font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px; font-weight: 600; letter-spacing: .1em;
-      text-transform: uppercase; border-radius: var(--radius);
-      cursor: pointer; transition: all .2s;
-    }
-    #launch-btn:hover { background: rgba(0,229,255,.2); transform: translateY(-1px); }
-    #launch-btn:active { transform: translateY(0); }
-
-    .divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
-
-    .section-title {
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-size: 10px;
       font-family: 'IBM Plex Mono', monospace;
-      font-size: 8px; font-weight: 600;
-      letter-spacing: .12em; text-transform: uppercase;
-      color: var(--accent2);
+      cursor: pointer;
+      outline: none;
     }
 
-    /* ── D-Pad ── */
-    .dpad {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      grid-template-rows: 1fr 1fr 1fr;
-      gap: 3px;
-    }
-
-    .dpad-bottom {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
-    }
+    .dpad { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+    .dpad-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 
     .dir-btn {
-      padding: 7px 3px;
+      padding: 6px 3px;
       border: 1px solid var(--border);
       background: rgba(255,255,255,0.02);
       color: var(--muted);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px; border-radius: 6px;
-      cursor: pointer; transition: all .12s;
-      line-height: 1.2; text-align: center;
-      user-select: none; -webkit-user-select: none;
+      font-size: 11px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all .12s;
+      text-align: center;
+      user-select: none;
+      font-family: inherit;
     }
-    .dir-btn span { font-size: 6px; display: block; margin-top: 2px; opacity: 0.6; }
-    .dir-btn:hover {
-      border-color: var(--accent2); color: var(--accent2);
-      background: rgba(255,77,109,.08);
-    }
-    .dir-btn:active { transform: scale(0.91); background: rgba(255,77,109,.18); }
-
+    .dir-btn span { font-size: 6px; display: block; margin-top: 1px; opacity: 0.6; }
+    .dir-btn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(255,77,109,.08); }
+    .dir-btn:active { transform: scale(0.92); }
     .stop-btn { border-color: rgba(255,200,0,0.25) !important; color: #ffc800 !important; }
-    .stop-btn:hover { border-color: #ffc800 !important; background: rgba(255,200,0,.08) !important; }
 
-    .keys-hint {
-      font-size: 7px; font-family: 'IBM Plex Mono', monospace;
-      color: var(--muted); text-align: center; line-height: 1.7;
-      border: 1px solid var(--border); border-radius: 5px; padding: 5px;
+    #launch-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: var(--header-bg);
+      color: #1a0e00;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .03em;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      border-radius: 0 0 9px 9px;
     }
+    #launch-btn:hover { opacity: 0.9; }
+    #launch-btn:active { opacity: 0.75; }
 
-    /* ── Stats ── */
     #stats {
       position: absolute;
       bottom: 12px; left: 50%;
@@ -189,105 +242,151 @@
       border-radius: var(--radius);
       backdrop-filter: blur(16px);
       z-index: 50;
-      padding: 10px 20px;
-      display: flex; gap: 24px;
-      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      padding: 9px 18px;
+      display: flex; gap: 22px;
     }
-
     .stat { display: flex; flex-direction: column; gap: 2px; align-items: center; }
-    .stat-label { font-size: 8px; font-family: 'IBM Plex Mono', monospace; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
-    .stat-val   { font-size: 13px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--accent3); }
+    .stat-label { font-size: 8px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+    .stat-val   { font-size: 12px; font-weight: 600; color: var(--accent3); }
 
-    /* ── Hint ── */
     #hint {
       position: absolute; bottom: 12px; left: 12px;
-      font-size: 10px; color: var(--muted);
-      font-family: 'IBM Plex Mono', monospace; line-height: 1.7; z-index: 50;
+      font-size: 9px; color: var(--muted);
+      z-index: 50;
     }
   </style>
 </head>
 <body>
 
-  <!-- ══ Canvas ══ -->
   <div id="canvas-container">
     <div id="stats">
-      <div class="stat"><div class="stat-label">السرعة |v|</div><div class="stat-val" id="s-speed">0.00</div></div>
-      <div class="stat"><div class="stat-label">الارتفاع Y</div><div class="stat-val" id="s-height">0.00</div></div>
-      <div class="stat"><div class="stat-label">الدوران |ω|</div><div class="stat-val" id="s-omega">0.00</div></div>
-      <div class="stat"><div class="stat-label">ارتدادات</div><div class="stat-val" id="s-bounces">0</div></div>
+      <div class="stat"><div class="stat-label">Speed</div><div class="stat-val" id="s-speed">0.00</div></div>
+      <div class="stat"><div class="stat-label">Height</div><div class="stat-val" id="s-height">0.00</div></div>
+      <div class="stat"><div class="stat-label">Spin</div><div class="stat-val" id="s-omega">0.00</div></div>
+      <div class="stat"><div class="stat-label">Bounces</div><div class="stat-val" id="s-bounces">0</div></div>
     </div>
-    <div id="hint">🖱 سحب للدوران · عجلة للتكبير</div>
+    <div id="hint">drag to rotate · scroll to zoom</div>
   </div>
 
-  <!-- ══ Side Panel ══ -->
   <div id="panel">
-    <h1>⚡ تنس الطاولة</h1>
 
-    <div class="ctrl-group">
-      <div class="ctrl-label">السرعة v₀ <span id="v0-val">8</span> m/s</div>
-      <input type="range" id="v0" min="2" max="20" step="0.5" value="8" />
+    <div class="panel-header" onclick="toggleSection('sec-root')">
+      <span class="chevron">▼</span>
+      <span>Simulation Control Panel</span>
     </div>
 
-    <div class="ctrl-group">
-      <div class="ctrl-label">زاوية θ <span id="theta-val">12</span>°</div>
-      <input type="range" id="theta" min="-30" max="30" step="1" value="12" />
-    </div>
+    <div id="sec-root">
 
-    <div class="ctrl-group">
-      <div class="ctrl-label">نوع الدوران</div>
-      <div class="spin-row">
-        <button class="spin-btn active" data-spin="topspin">TOP<br/>SPIN</button>
-        <button class="spin-btn"        data-spin="none">NO<br/>SPIN</button>
-        <button class="spin-btn"        data-spin="backspin">BACK<br/>SPIN</button>
+      <div class="section" id="sec-env">
+        <div class="section-header" onclick="toggleSection('sec-env')">
+          <span>Environmental Factors</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="check-row">
+            <span>Air Resistance (Drag)</span>
+            <div class="checkbox checked" id="check-drag" onclick="toggleCheck('check-drag')"></div>
+          </div>
+          <div class="check-row">
+            <span>Magnus Effect</span>
+            <div class="checkbox checked" id="check-magnus" onclick="toggleCheck('check-magnus')"></div>
+          </div>
+        </div>
       </div>
+
+      <div class="section" id="sec-launch">
+        <div class="section-header" onclick="toggleSection('sec-launch')">
+          <span>Launch Parameters</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="slider-row">
+            <span class="slider-name">Initial Velocity (v0)</span>
+            <input type="range" id="v0" min="2" max="35" step="0.5" value="13" />
+            <span class="val-box" id="v0-val">13.0</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-name">Launch Angle (°)</span>
+            <input type="range" id="theta" min="-30" max="30" step="1" value="10" />
+            <span class="val-box" id="theta-val">10</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-name">Angular Velocity (ω)</span>
+            <input type="range" id="omegaSlider" min="0" max="200" step="5" value="80" />
+            <span class="val-box" id="omega-val">80</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="sec-spin">
+        <div class="section-header" onclick="toggleSection('sec-spin')">
+          <span>Spin Mechanics</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="select-row">
+            <span class="label">Spin Type</span>
+          <select id="spinSelect">
+  <option value="topspin" selected>Topspin</option>
+  <option value="backspin">Backspin</option>
+  <option value="sidespin">Sidespin</option>
+  <option value="none">No Spin</option>
+  <option value="nethit">Net Hit</option>
+ 
+  <option value="corkscrew">Corkscrew</option>
+</select>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="section collapsed" id="sec-manual">
+        <div class="section-header" onclick="toggleSection('sec-manual')">
+          <span>Manual Control</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="slider-row">
+            <span class="slider-name">Ball Size</span>
+            <input type="range" id="ball-size" min="0.5" max="4" step="0.1" value="1" />
+            <span class="val-box" id="ball-size-val">1.0x</span>
+          </div>
+          <div class="slider-row">
+            <span class="slider-name">Push Force</span>
+            <input type="range" id="push-force" min="0.5" max="10" step="0.5" value="2" />
+            <span class="val-box" id="push-val">2</span>
+          </div>
+          <div class="dpad">
+            <div></div>
+            <button class="dir-btn" id="btn-forward">▲<span>fwd</span></button>
+            <div></div>
+            <button class="dir-btn" id="btn-left">◄<span>left</span></button>
+            <button class="dir-btn" id="btn-up">↑<span>up</span></button>
+            <button class="dir-btn" id="btn-right">►<span>right</span></button>
+            <div></div>
+            <button class="dir-btn" id="btn-backward">▼<span>back</span></button>
+            <div></div>
+          </div>
+          <div class="dpad-bottom">
+            <button class="dir-btn" id="btn-down">↓<span>down</span></button>
+            <button class="dir-btn stop-btn" id="btn-stop">⏹<span>stop</span></button>
+          </div>
+        </div>
+      </div>
+
+      <button id="launch-btn">▶ Launch Ball</button>
+
     </div>
-
-    <div class="ctrl-group">
-      <div class="ctrl-label">دوران ω <span id="omega-val">80</span> rad/s</div>
-      <input type="range" id="omegaSlider" min="0" max="200" step="5" value="80" />
-    </div>
-
-    <button id="launch-btn">▶ إطلاق الكرة</button>
-
-    <hr class="divider"/>
-
-    <div class="section-title">🎮 تحكم يدوي</div>
-
-    <div class="ctrl-group">
-      <div class="ctrl-label">حجم الكرة <span id="ball-size-val">1.0</span>x</div>
-      <input type="range" id="ball-size" min="0.5" max="4" step="0.1" value="1" />
-    </div>
-
-    <div class="ctrl-group">
-      <div class="ctrl-label">قوة الدفع <span id="push-val">2</span> m/s</div>
-      <input type="range" id="push-force" min="0.5" max="10" step="0.5" value="2" />
-    </div>
-
-    <!-- D-Pad -->
-    <div class="dpad">
-      <div></div>
-      <button class="dir-btn" id="btn-forward">▲<br/><span>أمام</span></button>
-      <div></div>
-
-      <button class="dir-btn" id="btn-left">◄<br/><span>يسار</span></button>
-      <button class="dir-btn" id="btn-up">↑<br/><span>أعلى</span></button>
-      <button class="dir-btn" id="btn-right">►<br/><span>يمين</span></button>
-
-      <div></div>
-      <button class="dir-btn" id="btn-backward">▼<br/><span>خلف</span></button>
-      <div></div>
-    </div>
-
-    <div class="dpad-bottom">
-      <button class="dir-btn" id="btn-down">↓<br/><span>أسفل</span></button>
-      <button class="dir-btn stop-btn" id="btn-stop">⏹<br/><span>إيقاف</span></button>
-    </div>
-
-    <div class="keys-hint">
-      ⌨️ ↑↓←→ حركة · Space أعلى<br/>Shift أسفل · S إيقاف
-    </div>
-
   </div>
+
+  <script>
+    function toggleSection(id) {
+      document.getElementById(id).classList.toggle('collapsed');
+    }
+    function toggleCheck(id) {
+      document.getElementById(id).classList.toggle('checked');
+    }
+  </script>
 
   <script type="module" src="/src/main.js"></script>
 </body>

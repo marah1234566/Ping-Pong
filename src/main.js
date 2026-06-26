@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { buildStands } from './scene/Stands.js';
 
 import { PHYSICS }              from './constants.js';
 import { BallState }            from './physics/BallState.js';
@@ -16,7 +17,7 @@ const container = document.getElementById('canvas-container');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(container.clientWidth, container.clientHeight); // ← تعديل
+renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.shadowMap.enabled   = true;
 renderer.shadowMap.type      = THREE.PCFSoftShadowMap;
 renderer.toneMapping         = THREE.ACESFilmicToneMapping;
@@ -28,30 +29,35 @@ container.appendChild(renderer.domElement);
 // ════════════════════════════════════════════════════════════════
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0c0f);
-scene.fog        = new THREE.FogExp2(0x0a0c0f, 0.05);
+
+// 🔄 استبدل السطر القديم بهذا السطر الموزون:
+scene.fog = new THREE.Fog(0x0a0c0f, 40, 100);
 
 const camera = new THREE.PerspectiveCamera(
   50,
-  container.clientWidth / container.clientHeight, // ← تعديل
+  container.clientWidth / container.clientHeight,
   0.01,
   100
 );
-camera.position.set(-3.5, 2.2, 3.0);
+camera.position.set(-11, 6, 9); 
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, PHYSICS.tableH, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance   = 1;
-controls.maxDistance   = 12;
+controls.maxDistance   = 35;
 controls.maxPolarAngle = Math.PI / 2 - 0.02;
 
 // ════════════════════════════════════════════════════════════════
-//  Build Scene
+//  Build Scene & Lights Capture
 // ════════════════════════════════════════════════════════════════
-buildLights(scene);
+// قمنا بحفظ كائن الأضواء المرجّع هنا للتحكم بمتغيراته داخل الـ Loop
+const lights = buildLights(scene);
+
 buildFloor(scene);
 buildTable(scene);
+buildStands(scene); // مدرجات الجمهور حول الملعب
 
 // ════════════════════════════════════════════════════════════════
 //  Ball Mesh
@@ -82,14 +88,28 @@ const trajectory = new TrajectoryVisualizer(scene);
 
 let spinType = 'topspin';
 
+// ════════════════════════════════════════════════════════════════
+//  🔧 نقطة الانطلاق الموحّدة لكل أنواع الدوران
+//  دائمًا من يسار الطاولة (نفس منطق BallState.reset)
+//  متجهة نحو اليمين (+X) أي نحو الطاولة والشبكة
+// ════════════════════════════════════════════════════════════════
+const LAUNCH_X = -PHYSICS.tableL / 2 + 0.1;       // ≈ -2.65 (يسار الطاولة)
+const LAUNCH_Y = PHYSICS.tableH + PHYSICS.tableThickness + 0.08;
+const LAUNCH_Z = 0;
+
+function setLaunchPosition() {
+  ballState.pos.set(LAUNCH_X, LAUNCH_Y, LAUNCH_Z);
+  ballState.bounces = 0;
+  ballState.stopped = false;
+}
+
+// دالة الإطلاق المحدثة بالكامل — تستدعي محرك الفيزياء مباشرة وتفرغ المسار القديم
 function launchBall() {
-  const v0    = parseFloat(document.getElementById('v0').value);
-  const theta = parseFloat(document.getElementById('theta').value);
-  const omega = parseFloat(document.getElementById('omegaSlider').value);
-  ballState.reset(v0, theta, spinType, omega);
+  physics.applyBallSpin(spinType);
   trajectory.clear();
 }
 
+// إطلاق كرة أولية عند بدء التحميل
 launchBall();
 
 // ════════════════════════════════════════════════════════════════
@@ -203,18 +223,16 @@ window.addEventListener('keyup', (e) => keysHeld.delete(e.code));
   if (input && valEl) input.addEventListener('input', () => { valEl.textContent = input.value; });
 });
 
-document.querySelectorAll('.spin-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.spin-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    spinType = btn.dataset.spin;
-  });
+// ربط عنصر القائمة المنسدلة (Dropdown) مع متغير الحركات
+document.getElementById('spinSelect').addEventListener('change', (e) => {
+  spinType = e.target.value;
 });
 
+// ربط الزر الكبير البرتقالي لاستدعاء دالة الإطلاق المحدثة
 document.getElementById('launch-btn').addEventListener('click', launchBall);
 
 // ════════════════════════════════════════════════════════════════
-//  Animation Loop
+//  Animation Loop (مع تحديث الإضاءة الديناميكي)
 // ════════════════════════════════════════════════════════════════
 let lastTime = null;
 
@@ -229,6 +247,21 @@ function animate(timestamp) {
   const subSteps = 4;
   for (let i = 0; i < subSteps; i++) {
     physics.step(dt / subSteps);
+  }
+
+  // 🔥 [إضافة التحديث الديناميكي للإضاءة] 🔥
+  // 1. حساب مسافة الكاميرا الحالية عن الهدف الموجهة إليه (مركز الطاولة)
+  if (lights) {
+    const cameraDistance = camera.position.distanceTo(controls.target);
+    
+    // 2. حساب المعامل؛ نفترض المسافة الافتراضية المريحة تبدأ من حوالي 15 وحدة
+    // كلما ابتعدت الكاميرا أكثر، يرتفع المعامل ليعوض بُعد المسافة ويحافظ على السطوع
+    const lightMultiplier = Math.max(1.0, cameraDistance * 0.07);
+
+    // 3. تعديل شدة الإضاءة للمصادر الرئيسية بناءً على بعد الكاميرا
+    if (lights.ambient)   lights.ambient.intensity   = 1.2 * lightMultiplier;
+    if (lights.dirLight)  lights.dirLight.intensity  = 2.5 * lightMultiplier;
+    if (lights.fillLight) lights.fillLight.intensity = 0.5 * lightMultiplier;
   }
 
   // تحديث موقع الكرة
@@ -253,7 +286,7 @@ function animate(timestamp) {
   blobMesh.position.set(ballState.pos.x, surfaceY, ballState.pos.z);
   blobMesh.scale.setScalar(blobScale * currentRadius / PHYSICS.r);
 
-  // الإحصاءات
+  // الإحصاءات في الشريط السفلي
   document.getElementById('s-speed').textContent   = ballState.vel.length().toFixed(2);
   document.getElementById('s-height').textContent  = Math.max(0, ballState.pos.y - PHYSICS.tableH).toFixed(3);
   document.getElementById('s-omega').textContent   = ballState.omega.length().toFixed(1);
@@ -273,5 +306,5 @@ window.addEventListener('resize', () => {
   const h = container.clientHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(w, h); // ← تعديل
+  renderer.setSize(w, h);
 });

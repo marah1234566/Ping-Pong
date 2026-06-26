@@ -3,8 +3,8 @@ import { PHYSICS } from '../constants.js';
 
 /** بناء الطاولة الكاملة: سطح، أرجل، خطوط، شبكة */
 export function buildTable(scene) {
-  const { tableL, tableW, tableH } = PHYSICS;
-  const thickness = 0.03;
+  const { tableL, tableW, tableH, tableThickness } = PHYSICS;
+  const thickness = tableThickness;
 
   // ── سطح الطاولة ─────────────────────────────────────────
   const topGeo = new THREE.BoxGeometry(tableL, thickness, tableW);
@@ -21,13 +21,10 @@ export function buildTable(scene) {
   const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
   const yLine   = tableH + thickness + 0.001;
 
-  // خط المنتصف
   scene.add(_line(new THREE.BoxGeometry(0.01, 0.002, tableW), lineMat, 0, yLine, 0));
-  // حواف طولية
   [-tableL/2, tableL/2].forEach(x =>
     scene.add(_line(new THREE.BoxGeometry(0.02, 0.002, tableW + 0.04), lineMat, x, yLine, 0))
   );
-  // حواف عرضية
   [-tableW/2, tableW/2].forEach(z =>
     scene.add(_line(new THREE.BoxGeometry(tableL + 0.04, 0.002, 0.02), lineMat, 0, yLine, z))
   );
@@ -46,30 +43,31 @@ export function buildTable(scene) {
     scene.add(leg);
   });
 
-  // ── الشبكة ───────────────────────────────────────────────
-  const netH    = 0.1525;
+  // ── الشبكة (مسطحة، شكلها الأصلي، بارتفاع أعلى وأوضح) ──────
+  const netH = 0.35; // ← أعلى من الأصلي (0.1525) لتبين بوضوح فوق الطاولة الأكبر
+
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 });
 
   // العارضة العلوية
-  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, tableW + 0.3, 8), frameMat);
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, tableW + 0.3, 8), frameMat);
   bar.rotation.x = Math.PI / 2;
-  bar.position.set(0, tableH + netH, 0);
+  bar.position.set(0, tableH + thickness + netH, 0);
   bar.castShadow = true;
   scene.add(bar);
 
-  // نسيج الشبكة
+  // نسيج الشبكة — PlaneGeometry مسطحة (الشكل الأصلي الصحيح)
   const netMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(tableW + 0.2, netH, 20, 8),
     new THREE.MeshBasicMaterial({ color: 0xdddddd, opacity: 0.7, transparent: true, side: THREE.DoubleSide, wireframe: true })
   );
   netMesh.rotation.y = Math.PI / 2;
-  netMesh.position.set(0, tableH + netH / 2, 0);
+  netMesh.position.set(0, tableH + thickness + netH / 2, 0);
   scene.add(netMesh);
 
   // أعمدة الشبكة
   [-tableW/2 - 0.05, tableW/2 + 0.05].forEach(z => {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, netH + 0.02, 8), frameMat);
-    post.position.set(0, tableH + netH / 2, z);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, netH + 0.02, 8), frameMat);
+    post.position.set(0, tableH + thickness + netH / 2, z);
     post.castShadow = true;
     scene.add(post);
   });

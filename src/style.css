@@ -3,24 +3,34 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #0a0c0f;
-  --panel:   rgba(14, 18, 24, 0.95);
-  --border:  rgba(255,255,255,0.08);
-  --accent:  #00e5ff;
-  --accent2: #ff4d6d;
-  --accent3: #7fff6e;
-  --text:    #c8d4e0;
-  --muted:   #5a6a7a;
-  --radius:  10px;
+  --bg:       #0a0c0f;
+  --panel-bg: #15191f;
+  --header-bg:#00b8d4;   /* ← هذا السطر بالضبط */
+  --border:   rgba(255,255,255,0.08);
+  --accent:   #00e5ff;
+  --accent2:  #ff4d6d;
+  --accent3:  #7fff6e;
+  --text:     #d4dae1;
+  --muted:    #8a96a3;
+  --radius:   6px;
 }
-
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'IBM Plex Mono', monospace;
   overflow: hidden;
   height: 100vh;
   width: 100vw;
+  display: flex;
+  align-items: flex-start;     /* ← يثبّت الـ panel من فوق بدل تمدده */
+  justify-content: flex-end;   /* ← يحافظ عليه بجهة اليمين */
+  position: relative;
+}
+
+#canvas-container {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
 #canvas-container {
@@ -35,23 +45,19 @@ body {
    Panel
    ════════════════════════════════════════ */
 #panel {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 270px;
-  max-height: calc(100vh - 32px);
+  width: 230px;
+  min-width: 230px;
+  max-height: 480px;          /* ← يحدد ارتفاع أقصى يجعلها مربعة تقريباً */
+  height: auto;                /* ← بدل 100vh */
+  margin: 12px;                 /* ← مسافة من حواف الشاشة */
+  border-radius: 10px;          /* ← حواف دائرية لأنها صارت "بطاقة" عائمة */
   overflow-y: auto;
-  background: var(--panel);
+  background: var(--panel-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   z-index: 100;
-  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
 }
 
 /* scrollbar خفي */

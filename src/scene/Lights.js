@@ -1,9 +1,5 @@
 import * as THREE from 'three';
 
-/**
- * إعداد الإضاءة الاحترافية:
- * Ambient + Directional (مع Shadow Map) + Fill + Point
- */
 export function buildLights(scene) {
   // ── إضاءة محيطية ──────────────────────────────────────────
   const ambient = new THREE.AmbientLight(0x223344, 1.2);
@@ -34,4 +30,7 @@ export function buildLights(scene) {
   tableLight.position.set(0, 3, 0);
   tableLight.castShadow = true;
   scene.add(tableLight);
+
+  // 🔥 الجديد هنا: إرجاع الأضواء لكي نتحكم بها ديناميكياً مع حركة الكاميرا
+  return { ambient, dirLight, fillLight, tableLight };
 }
