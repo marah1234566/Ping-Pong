@@ -15,63 +15,77 @@ export class PhysicsEngine {
   }
 
   // 👇 هاد هو القسم الجديد ضفناه كـ دالة (Method) داخل الكلاس
-applyBallSpin(type) {
-  const { pos, vel, omega } = this.state;
+ // أضفنا متغيرين لحفظ نوع الحركة المجهّزة للإطلاق
+ applyBallSpin(type) {
+    const { pos, vel, omega } = this.state;
 
-  // 1. تكبير الـ X لترجع الكرة لورا لأقصى حافة الطاولة اليمين ويبين القوس كاملاً
-  // إذا حسيتها لسا بدها رجعة، فيك ترفع الرقم لـ 2.8 أو 3.0 حسب مقاسات طاولتك
-  pos.set(2.6, 1.25, 0); 
+    // 1. نحدد نقطة انطلاق الكرة من أمام المضرب الأحمر (جهة اليمين موجبة X)
+   pos.set(
+      PHYSICS.tableL / 2 - 0.25, 
+      PHYSICS.tableH + PHYSICS.tableThickness + 0.15, 
+      0
+    );
 
-  // تصفير المتجهات تماماً قبل الإطلاق الجديد
-  vel.set(0, 0, 0);
-  omega.set(0, 0, 0);
+    // نلغي أي سرعة أو دوران سابق قبل تطبيق الحركة الجديدة
+    vel.set(0, 0, 0);
+    omega.set(0, 0, 0);
+    // 2. تطبيق قيم السرعة والدوران بناءً على الحركة المحددة فوراً عند الضغط على الزر
+    switch (type) {
+      case 'backspin':
+        vel.set(-8.5, 4.2, 0);
+        omega.set(0, 0, -8);
+        break;
 
-  switch (type) {
-    case 'backspin': 
-      // 🚀 ترتفع فوق الشبكة مباشرة وتعمل قوس طبيعي وممتاز
-      vel.set(-8.5, 4.2, 0); 
-      omega.set(0, 0, -8); // دوران خلفي خفيف لعوم انسيابي
-      break;
+      case 'topspin':
+        vel.set(-7.5, 3.8, 0);
+        omega.set(0, 0, 30);
+        break;
 
-    case 'topspin': 
-      // 🥎 تصطدم بطاولتك أولاً ثم تقفز فوق الشبكة تعبر للخصم
-      vel.set(-7.5, -2.8, 0); // زاوية سالبة للأسفل لتضرب طاولتك اليمين أولاً
-      omega.set(0, 0, 30);   
-      break;
+      case 'sidespin':
+        vel.set(-8.5, 3.2, 1.8);
+        omega.set(0, 0, 0);
+        break;
 
-    case 'sidespin': 
-      // 📐 تنضرب مائلة نحو الحواف الجانبية
-      vel.set(-8.5, 3.0, 1.8); // قوة دفع على Z للانحراف الجانبي
-      omega.set(0, 0, 0);
-      break;
+      case 'corkscrew':
+        vel.set(-8.5, 3.5, 1.4);
+        omega.set(0, 0, 35);
+        break;
 
-    case 'nethit': 
-      // 🛑 تصطدم بالشبكة مباشرة في المنتصف تماماً وترتد
-      vel.set(-5.8, 1.8, 0); 
-      omega.set(0, 0, 0);
-      break;
+      case 'nethit':
+        vel.set(-5.8, 1.8, 0);
+        omega.set(0, 0, 0);
+        break;
 
-    case 'none':
-    default:
-      // ⚪ ضربة عادية ومستقيمة تعبر الشبكة بشكل طبيعي
-      vel.set(-8.5, 2.5, 0);
-      omega.set(0, 0, 0);
-      break;
- case 'corkscrew':
-      // 🌀 حركة الـ Corkscrew الإجبارية:
-      // نمنح الكرة سرعة أمامية (X)، وارتفاع ممتاز (Y) لتعبر الشبكة
-      // ونعطيها سرعة جانبية ابتدائية (Z) بقيمة 1.4 لتبدأ بالالتفاف والانحراف فوراً في الهواء
-      vel.set(-8.5, 3.5, 1.4); 
-      
-      // نضع قيم الدوران على المحور الافتراضي الشغال عندك (محور Z) ليجعلها تدور وتهبط بحدة
-      omega.set(0, 0, 35); 
-      break;
+      // الحركات الجديدة المتطورة
+      case 'snake':
+        vel.set(-10.5, 1.8, -0.5); 
+        omega.set(0, -50, 10);
+        break;
+
+      case 'phantom':
+        vel.set(-6.5, 4.2, 0.5);
+        omega.set(0, 30, 45);
+        break;
+
+      case 'deadball':
+        vel.set(-7.5, 3.0, 0);
+        omega.set(0, 0, 0);
+        break;
+
+      default:
+        vel.set(-8.5, 2.8, 0);
+        omega.set(0, 0, 0);
+        break;
+    }
+
+    // نلغي أي حالة توقف سابقة لتبدأ المحاكاة فوراً
+    this.state.stopped = false;
+    this.state.bounces = 0;
+
+    // 🔥 نضع علامة تخبر الـ main.js بأننا قمنا بالإرسال للتو ليتم سحب المضرب خلف الكرة
+    this.justLaunched = true;
   }
-  
-  // تفعيل الحركة وإعادة تعيين العدادات
-  this.state.stopped = false; 
-  this.state.bounces = 0;
-}
+
   step(dt) {
     if (this.state.stopped) return;
     const { pos, vel, omega } = this.state;
@@ -89,9 +103,10 @@ applyBallSpin(type) {
     this._Fm.crossVectors(omega, vel).multiplyScalar(PHYSICS.Sm);
 
     const maxMagnus = PHYSICS.m * PHYSICS.g * 3.0;
-if (this._Fm.length() > maxMagnus) {
-  this._Fm.setLength(maxMagnus);
-}
+    if (this._Fm.length() > maxMagnus) {
+      this._Fm.setLength(maxMagnus);
+    }
+
     this._Ftot.copy(this._Fg).add(this._Fd).add(this._Fm);
     this._acc.copy(this._Ftot).divideScalar(PHYSICS.m);
 
@@ -179,5 +194,45 @@ if (this._Fm.length() > maxMagnus) {
         omega.multiplyScalar(0.6);
       }
     }
+  }
+
+  /**
+   * يفحص تصادم الكرة مع مضرب، وينقل لها زخم المضرب عند الضرب
+   * @param {THREE.Vector3} paddlePos - موضع المضرب
+   * @param {THREE.Vector3} paddleVel - سرعة المضرب اللحظية
+   * @param {boolean} isHitting - هل حصلت ضربة فعلية الآن
+   * @returns {boolean} true إذا حصل تصادم
+   */
+checkPaddleHit(paddlePos, paddleVel, isHitting) {
+    const { pos, vel, omega } = this.state;
+    const { r } = PHYSICS;
+
+    // لمنع حدوث تصادم خاطئ لحظة الانطلاق المباشر
+    if (this.justLaunched && paddlePos.x > 0) return false;
+
+    const paddleRadius = 0.85;
+    const hitDistance = r + paddleRadius;
+
+    const dist = pos.distanceTo(paddlePos);
+    if (dist > hitDistance) return false;
+    if (!isHitting) return false;
+
+    const normal = new THREE.Vector3().subVectors(pos, paddlePos).normalize();
+    pos.copy(paddlePos).addScaledVector(normal, hitDistance + 0.001);
+
+    const restitution = 0.6;
+    const transferFactor = 1.4;
+    const speedAlongNormal = vel.dot(normal);
+
+    if (speedAlongNormal < 0 || vel.length() < 0.1) {
+      vel.addScaledVector(normal, -speedAlongNormal * (1 + restitution));
+      vel.addScaledVector(paddleVel, transferFactor);
+      
+      omega.z += paddleVel.z * 2;
+      omega.x += paddleVel.y * 1.5;
+    }
+
+    this.state.stopped = false;
+    return true;
   }
 }
