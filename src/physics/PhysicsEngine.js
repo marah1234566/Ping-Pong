@@ -12,24 +12,22 @@ export class PhysicsEngine {
     this._acc  = new THREE.Vector3();
 
     this._I = (2 / 3) * PHYSICS.m * PHYSICS.r * PHYSICS.r;
+    
+    // متغير التحقق من لحظة الانطلاق
+    this.justLaunched = false;
   }
 
-  // 👇 هاد هو القسم الجديد ضفناه كـ دالة (Method) داخل الكلاس
- // أضفنا متغيرين لحفظ نوع الحركة المجهّزة للإطلاق
- applyBallSpin(type) {
+  /**
+   * تطبيق قيم السرعة والدوران بناءً على الحركة المحددة فوراً عند الضغط على الزر
+   */
+  applyBallSpin(type) {
     const { pos, vel, omega } = this.state;
-
-    // 1. نحدد نقطة انطلاق الكرة من أمام المضرب الأحمر (جهة اليمين موجبة X)
-   pos.set(
-      PHYSICS.tableL / 2 - 0.25, 
-      PHYSICS.tableH + PHYSICS.tableThickness + 0.15, 
-      0
-    );
 
     // نلغي أي سرعة أو دوران سابق قبل تطبيق الحركة الجديدة
     vel.set(0, 0, 0);
     omega.set(0, 0, 0);
-    // 2. تطبيق قيم السرعة والدوران بناءً على الحركة المحددة فوراً عند الضغط على الزر
+
+    // تطبيق قيم السرعات والـ Spin للحركات المختلفة
     switch (type) {
       case 'backspin':
         vel.set(-8.5, 4.2, 0);
@@ -56,7 +54,6 @@ export class PhysicsEngine {
         omega.set(0, 0, 0);
         break;
 
-      // الحركات الجديدة المتطورة
       case 'snake':
         vel.set(-10.5, 1.8, -0.5); 
         omega.set(0, -50, 10);
@@ -78,17 +75,25 @@ export class PhysicsEngine {
         break;
     }
 
-    // نلغي أي حالة توقف سابقة لتبدأ المحاكاة فوراً
+    // تنشيط المحاكاة وتصفير الارتدادات
     this.state.stopped = false;
     this.state.bounces = 0;
 
-    // 🔥 نضع علامة تخبر الـ main.js بأننا قمنا بالإرسال للتو ليتم سحب المضرب خلف الكرة
+    // تفعيل حماية الإطلاق المؤقتة لمنع التصادم العكسي في أول فريم
     this.justLaunched = true;
   }
 
   step(dt) {
     if (this.state.stopped) return;
     const { pos, vel, omega } = this.state;
+
+    // تصفير حماية الإطلاق تلقائياً بمجرد أن تبدأ الكرة بالتحرك والابتعاد عن المضرب
+    if (this.justLaunched && vel.length() > 0.1) {
+      // إذا ابتعدت الكرة قليلاً للأمام، نقوم بإلغاء الحماية فوراً ليصبح المضرب جاهزاً للضرب والتصادم
+      if (pos.x < (PHYSICS.tableL / 2) - 0.4) {
+        this.justLaunched = false;
+      }
+    }
 
     this._Fg.set(0, -PHYSICS.m * PHYSICS.g, 0);
 
@@ -197,39 +202,38 @@ export class PhysicsEngine {
   }
 
   /**
-   * يفحص تصادم الكرة مع مضرب، وينقل لها زخم المضرب عند الضرب
-   * @param {THREE.Vector3} paddlePos - موضع المضرب
-   * @param {THREE.Vector3} paddleVel - سرعة المضرب اللحظية
-   * @param {boolean} isHitting - هل حصلت ضربة فعلية الآن
-   * @returns {boolean} true إذا حصل تصادم
+   * يفحص تصادم الكرة مع المضرب وينقل الزخم الفيزيائي بدقة
    */
-checkPaddleHit(paddlePos, paddleVel, isHitting) {
+  checkPaddleHit(paddlePos, paddleVel, isHitting) {
     const { pos, vel, omega } = this.state;
     const { r } = PHYSICS;
 
-    // لمنع حدوث تصادم خاطئ لحظة الانطلاق المباشر
+    // حظر التصادم فقط في أول فريم حقيقي لمنع الالتصاق والارتداد العكسي المتكرر
     if (this.justLaunched && paddlePos.x > 0) return false;
 
-    const paddleRadius = 0.85;
+    // تعيين نصف قطر الفحص الموسع ليتوافق تماماً مع الحجم المكبّر الجديد للمضارب
+    const paddleRadius = 0.95;
     const hitDistance = r + paddleRadius;
 
     const dist = pos.distanceTo(paddlePos);
     if (dist > hitDistance) return false;
     if (!isHitting) return false;
 
+    // حساب ناقل العمودي للتصادم وإزاحة الكرة منعاً للتداخل
     const normal = new THREE.Vector3().subVectors(pos, paddlePos).normalize();
-    pos.copy(paddlePos).addScaledVector(normal, hitDistance + 0.001);
+    pos.copy(paddlePos).addScaledVector(normal, hitDistance + 0.005);
 
-    const restitution = 0.6;
-    const transferFactor = 1.4;
+    const restitution = 0.65;
+    const transferFactor = 1.5; // عامل زيادة زخم المضرب لجعل الضربة حقيقية وقوية
     const speedAlongNormal = vel.dot(normal);
 
     if (speedAlongNormal < 0 || vel.length() < 0.1) {
       vel.addScaledVector(normal, -speedAlongNormal * (1 + restitution));
       vel.addScaledVector(paddleVel, transferFactor);
       
-      omega.z += paddleVel.z * 2;
-      omega.x += paddleVel.y * 1.5;
+      // نقل تأثير الدوران من حركة المضرب إلى الكرة
+      omega.z += paddleVel.z * 2.5;
+      omega.x += paddleVel.y * 1.8;
     }
 
     this.state.stopped = false;

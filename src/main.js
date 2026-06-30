@@ -94,6 +94,14 @@ const trajectory = new TrajectoryVisualizer(scene);
 
 let spinType = 'topspin';
 
+// متغيرات التحكم بأنيميشن الضربة المتزامنة والملتصقة تماماً بالقرص الأحمر
+let isSwinging = false;      
+let swingProgress = 0;      
+let swingStartPosition = new THREE.Vector3(); 
+let currentSwingOffset = 0;
+let ballReleased = false; 
+let savedLaunchVel = new THREE.Vector3(); 
+
 const LAUNCH_X = -PHYSICS.tableL / 2 + 0.1;
 const LAUNCH_Y = PHYSICS.tableH + PHYSICS.tableThickness + 0.08;
 const LAUNCH_Z = 0;
@@ -103,45 +111,50 @@ function setLaunchPosition() {
   ballState.bounces = 0;
   ballState.stopped = false;
 }
-// ── تعديل دالة الإطلاق لتخرج الكرة مباشرة من المضرب 🚀 ────────────────
-// ── دالة إطلاق الكرة الصحيحة والمثبتة هندسياً لتخرج من جهة اللاعب 🚀 ────────────────
-// ── دالة الإطلاق الاحترافية: الكرة تنطلق من المضرب وبتأثير ضربته تماماً 🚀 ──
+
+// ── دالة الإطلاق المحدثة هندسياً لتخرج من القرص الأحمر تماماً 🚀 ──
 function launchBall() {
-  // 1. قراءة قيم السرعة والزاوية من الـ Sliders
   const v0Input = document.getElementById('v0');
   const thetaInput = document.getElementById('theta');
-  const v0 = v0Input ? parseFloat(v0Input.value) : 7.5; // السرعة الابتدائية للضربة
+  const v0 = v0Input ? parseFloat(v0Input.value) : 7.5;
   const theta = thetaInput ? (parseFloat(thetaInput.value) * Math.PI / 180) : (12 * Math.PI / 180);
 
-  // 2. مطابقة موقع انطلاق الكرة مع مركز المضرب الأحمر (اللاعب) تماماً
-  ballState.pos.copy(paddleController.playerPos);
+  physics.justLaunched = false;
+
+  // 1. حفظ موضع الماوس الحالي كموقع انطلاق للمضرب
+  swingStartPosition.copy(paddleController.playerPos);
   
-  // إزاحة طفيفة أمام المضرب مباشرة (باتجاه محور X السالب) حتى لا تخرج من خلفه
-  ballState.pos.x -= 0.25; 
-  ballState.pos.y += 0.1; 
+  // 2. حساب السرعة والاتجاه الفيزيائي المطلوب للكرة عند الانفصال
+  const vx = -v0 * Math.cos(theta);
+  const vy = v0 * Math.sin(theta);
+  const vz = -paddleController.playerVel.z * 0.3;
+  savedLaunchVel.set(vx, vy, vz);
 
-  // 3. الحل السحري: حساب اتجاه الدفع بناءً على زاوية وميلان المضرب الحالي (Normal Vector)
-  // ننشئ متجه متجه للأمام الافتراضي
-  const forwardVector = new THREE.Vector3(-Math.cos(theta), Math.sin(theta), 0);
-  
-  // نقوم بتدوير متجه الانطلاق بنفس زوايا دوران المضرب الحالية تماماً لتعكس الضربة وجه المضرب!
-  forwardVector.applyAxisAngle(new THREE.Vector3(1, 0, 0), playerPaddle.rotation.x);
-  forwardVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), playerPaddle.rotation.z);
-  forwardVector.normalize();
-
-  // 4. تعيين السرعة النهائية للكرة بناءً على المتجه المائل للمضرب وقوة الدفع
-  ballState.vel.copy(forwardVector).multiplyScalar(v0);
-
-  // 5. تصفير المتغيرات وتشغيل الحركة والدوران الفيزيائي المختار (Top/Back/Side)
-  ballState.omega.set(0, 0, 0); 
+  // 3. تصفير حركة الكرة وتجهيزها للالتصاق بوجه المضرب
+  ballState.vel.set(0, 0, 0);
+  ballState.omega.set(0, 0, 0);
   ballState.bounces = 0;
   ballState.stopped = false;
+  
+  isSwinging = true;
+  swingProgress = 0;
+  currentSwingOffset = 0;
+  ballReleased = false;
 
-  // تطبيق الدوران الميكانيكي ومسار خط الرسم المحدث
-  physics.applyBallSpin(spinType);
+  // تحديث مصفوفة التحويلات للمضرب فوراً لحساب النقطة المحلية بدقة
+  playerPaddle.updateMatrixWorld();
+
+  // 🔥 الحل الهندسي السحري: نحدد النقطة المحلية لمركز القرص الأحمر تماماً (0 للأمام، 0.45 للأعلى)
+  // ونحولها إلى إحداثيات العالم الحقيقي لتوضع الكرة في سنتر الدائرة الحمراء بالملي
+  const localCenter = new THREE.Vector3(0, 0.45, 0); 
+  playerPaddle.localToWorld(localCenter);
+  
+  // نضع الكرة في هذا المركز العالمي للقرص مع إزاحة خفيفة جداً للأمام ليظهر الالتصاق البصري
+  ballState.pos.copy(localCenter);
+  ballState.pos.x -= 0.05; 
+
   trajectory.clear();
 }
-launchBall();
 
 // ════════════════════════════════════════════════════════════════
 //  🎮 UI Controls & Sliders
@@ -268,13 +281,15 @@ function animate(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000, 0.033);
   lastTime = timestamp;
 
-  // الحسابات الفيزيائية للكرة
-  const subSteps = 4;
-  for (let i = 0; i < subSteps; i++) {
-    physics.step(dt / subSteps);
+  // الحسابات الفيزيائية للكرة تعمل عند الانفصال
+  if (!isSwinging || ballReleased) {
+    const subSteps = 4;
+    for (let i = 0; i < subSteps; i++) {
+      physics.step(dt / subSteps);
+    }
   }
 
-  // ── 1. فحص دالات الـ Controller بأمان لمنع الشاشة السوداء ──────────────────
+  // ── 1. فحص دالات الـ Controller بأمان ──────────────────
   try {
     if (typeof paddleController.update === 'function') {
       paddleController.update(dt);
@@ -316,7 +331,6 @@ function animate(timestamp) {
   const motionTiltZ = THREE.MathUtils.clamp(paddleController.playerVel.z * 0.03, -0.2, 0.2);
   const finalPlayerTiltZ = targetTiltZ + motionTiltZ;
 
-  // تطبيق التدوير الانسيابي والناعم
   playerPaddle.rotation.x = THREE.MathUtils.lerp(playerPaddle.rotation.x, targetTiltX, 0.15);
   playerPaddle.rotation.z = THREE.MathUtils.lerp(playerPaddle.rotation.z, finalPlayerTiltZ, 0.15);
   playerPaddle.rotation.y = 0;
@@ -325,53 +339,83 @@ function animate(timestamp) {
   botPaddle.rotation.z = THREE.MathUtils.lerp(botPaddle.rotation.z, botTiltZ, 0.15);
   botPaddle.rotation.y = 0;
 
-  // ── 3. الارتفاع الوقائي الديناميكي بصرياً فقط لمنع الغوص ──────────────────
+  // ── 3. الارتفاع الوقائي الديناميكي بصرياً ──────────────────
   const tableSurfaceY = PHYSICS.tableH + PHYSICS.tableThickness;
   const totalPaddleExtent = 0.57; 
 
   const playerOffsetDueToTilt = Math.max(Math.abs(Math.sin(playerPaddle.rotation.x)), Math.abs(Math.sin(playerPaddle.rotation.z))) * totalPaddleExtent;
   const botOffsetDueToTilt = Math.max(Math.abs(Math.sin(botPaddle.rotation.x)), Math.abs(Math.sin(botPaddle.rotation.z))) * totalPaddleExtent;
 
-  // المظهر البصري يتحرك فوق الطاولة مباشرة دون غوص
-  playerPaddle.position.copy(paddleController.playerPos);
-  playerPaddle.position.y = tableSurfaceY + playerOffsetDueToTilt;
+  // ── 4. تطبيق الأنميشن والاندفاع المتزامن بدقة ──
+  if (isSwinging) {
+    swingProgress += dt * 5.5; 
+
+    if (swingProgress <= 0.5) {
+      const t = swingProgress / 0.5;
+      currentSwingOffset = THREE.MathUtils.lerp(0, 0.5, t);
+      
+      playerPaddle.position.copy(swingStartPosition);
+      playerPaddle.position.x -= currentSwingOffset;
+      playerPaddle.position.y = tableSurfaceY + playerOffsetDueToTilt + (Math.sin(t * Math.PI) * 0.08);
+
+      // تحديث المظهر العالمي للمضرب أثناء الحركة
+      playerPaddle.updateMatrixWorld();
+
+      // إعادة حساب مركز القرص الأحمر العالمي في كل فريم لتبقى الكرة ملتصقة بوسط الدائرة الحمراء تماماً!
+      const currentLocalCenter = new THREE.Vector3(0, 0.45, 0);
+      playerPaddle.localToWorld(currentLocalCenter);
+      
+      ballState.pos.copy(currentLocalCenter);
+      ballState.pos.x -= (currentRadius + 0.01); // تلامس سطحي مثالي مع القرص الدائري
+    } else if (swingProgress <= 1.0) {
+      if (!ballReleased) {
+        ballReleased = true;
+        physics.applyBallSpin(spinType);
+        ballState.vel.copy(savedLaunchVel);
+      }
+
+      const t = (swingProgress - 0.5) / 0.5;
+      const swingEndPos = new THREE.Vector3(swingStartPosition.x - 0.5, tableSurfaceY + playerOffsetDueToTilt, swingStartPosition.z);
+      playerPaddle.position.lerpVectors(swingEndPos, paddleController.playerPos, t);
+      playerPaddle.position.y = THREE.MathUtils.lerp(playerPaddle.position.y, tableSurfaceY + playerOffsetDueToTilt, t);
+    } else {
+      isSwinging = false;
+      playerPaddle.position.copy(paddleController.playerPos);
+      playerPaddle.position.y = tableSurfaceY + playerOffsetDueToTilt;
+    }
+  } else {
+    playerPaddle.position.copy(paddleController.playerPos);
+    playerPaddle.position.y = tableSurfaceY + playerOffsetDueToTilt;
+  }
 
   botPaddle.position.copy(paddleController.botPos);
   botPaddle.position.y = tableSurfaceY + botOffsetDueToTilt;
 
-  // ── 4. الحل السحري للتصادم الدقيق 🎯 ──────────────────
-  // ننشئ نقاط فحص فيزيائية ثابتة الارتفاع على نفس مستوى الكرة تماماً لضمان الاصطدام بنسبة 100%
- // ── 4. الحل السحري والتلقائي للتصادم الدقيق 🎯 ──────────────────
-  // نحدد الارتفاع الثابت للفحص الفيزيائي ليتناسب مع مستوى مسار الكرة فوق الطاولة
+  // ── 5. فحص التصادم الديناميكي المعتاد ──────────────────
   const checkY = tableSurfaceY + currentRadius;
-
-  const playerHitCheckPos = new THREE.Vector3(paddleController.playerPos.x, checkY, paddleController.playerPos.z);
+  const playerHitCheckPos = new THREE.Vector3(playerPaddle.position.x, checkY, playerPaddle.position.z);
   const botHitCheckPos    = new THREE.Vector3(paddleController.botPos.x,    checkY, paddleController.botPos.z);
 
-  // حساب المسافة الهندسية المباشرة بين الكرة والمضارب
   const distToPlayer = ballState.pos.distanceTo(playerHitCheckPos);
   const distToBot    = ballState.pos.distanceTo(botHitCheckPos);
-
-  // نصف قطر الفحص الموسّع لضمان التقاط الكرة (حجم الكرة + حجم المضرب المكبّر تقريباً)
   const hitThreshold = 0.95; 
 
-  // أ) فحص تصادم مضرب اللاعب (الأحمر)
-  // إذا اقتربت الكرة من المضرب ضمن النطاق، يتم تفعيل الضرب تلقائياً لضمان عدم مرورها
-  const playerWantsHit = paddleController.consumePlayerHitIntent() || (distToPlayer < hitThreshold);
-  if (distToPlayer < hitThreshold || (Math.abs(ballState.pos.x - playerHitCheckPos.x) < 0.4 && Math.abs(ballState.pos.z - playerHitCheckPos.z) < 0.6)) {
-    physics.checkPaddleHit(playerHitCheckPos, paddleController.playerVel, true);
-  } else {
-    physics.checkPaddleHit(playerHitCheckPos, paddleController.playerVel, playerWantsHit);
+  if (!isSwinging) {
+    const playerWantsHit = paddleController.consumePlayerHitIntent() || (distToPlayer < hitThreshold);
+    if (distToPlayer < hitThreshold || (Math.abs(ballState.pos.x - playerHitCheckPos.x) < 0.4 && Math.abs(ballState.pos.z - playerHitCheckPos.z) < 0.6)) {
+      physics.checkPaddleHit(playerHitCheckPos, paddleController.playerVel, true);
+    } else {
+      physics.checkPaddleHit(playerHitCheckPos, paddleController.playerVel, playerWantsHit);
+    }
   }
 
-  // ب) فحص تصادم مضرب البوت (الأزرق)
-  // تفعيل التصادم التلقائي للبوت بمجرد اقتراب الكرة من حيز المضرب الخاص به
   const botShouldHit = paddleController.shouldBotHit(ballState.pos) || (distToBot < hitThreshold);
   if (distToBot < hitThreshold || (Math.abs(ballState.pos.x - botHitCheckPos.x) < 0.4 && Math.abs(ballState.pos.z - botHitCheckPos.z) < 0.6)) {
     physics.checkPaddleHit(botHitCheckPos, paddleController.botVel, true);
   } else {
     physics.checkPaddleHit(botHitCheckPos, paddleController.botVel, botShouldHit);
   }
+
   // ── تحديث مظهر الكرة والظل ومسار الحركة ─────────────────────────
   ballMesh.position.copy(ballState.pos);
 
